@@ -11,7 +11,10 @@ const client = axios.create({
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    // The auth probe (/auth/me) is expected to 401 for guests — it must not
+    // trigger the redirect, or guests would be bounced off public pages.
+    const isAuthProbe = error.config?.url === '/auth/me';
+    if (error.response?.status === 401 && !isAuthProbe) {
       if (window.location.pathname !== '/login') {
         window.location.assign('/login');
       }
