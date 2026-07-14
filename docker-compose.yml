@@ -14,8 +14,12 @@ services:
       - "5000:5000"
     env_file:
       - .env
+    environment:
+      # Container-to-container Mongo URI (overrides any localhost value in .env).
+      MONGODB_URI: mongodb://mongo:27017/ecolend
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
 
   mongo:
     image: mongo:7
@@ -23,6 +27,11 @@ services:
       - mongo_data:/data/db
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mongo_data:
