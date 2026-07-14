@@ -14,6 +14,16 @@ const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
 function sessionMiddleware() {
+  // Cookie is hardened via httpOnly + sameSite=strict + maxAge, with secure
+  // enabled in production. Three Semgrep express-cookie-settings rules are
+  // suppressed with justification below:
+  //  - no-secure: `secure` is environment-conditional (true in prod; cannot be
+  //    true over local http dev), which the rule cannot express.
+  //  - no-domain: left unset intentionally so the cookie is host-only, which is
+  //    tighter scope than pinning a domain.
+  //  - no-expires: expiry is handled by `maxAge` (idle) plus the absolute cap in
+  //    requireAuth; `expires` would be redundant.
+  // nosemgrep: javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-secure, javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-domain, javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-expires
   return session({
     name: 'ecolend.sid',
     secret: env.sessionSecret,
@@ -29,6 +39,7 @@ function sessionMiddleware() {
       httpOnly: true,
       secure: env.isProd,
       sameSite: 'strict',
+      path: '/',
       maxAge: IDLE_TIMEOUT_MS,
     },
   });
