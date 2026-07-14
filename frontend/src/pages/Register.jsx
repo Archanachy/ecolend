@@ -5,8 +5,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import zxcvbn from 'zxcvbn';
 import { Link, useNavigate } from 'react-router-dom';
 import { register as registerApi } from '../api/auth';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
 
 const schema = z
   .object({
@@ -36,8 +38,17 @@ export default function Register() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema) });
+
+  // Live strength scoring. Submission is blocked below score 2 and while the
+  // two password fields disagree (the server enforces the same policy).
+  const password = watch('password') || '';
+  const confirmPassword = watch('confirmPassword') || '';
+  const strength = password ? zxcvbn(password) : null;
+  const tooWeak = strength !== null && strength.score < 2;
+  const mismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   async function onSubmit(values) {
     setServerError('');
@@ -78,6 +89,7 @@ export default function Register() {
           Password
           <input type="password" autoComplete="new-password" {...register('password')} />
         </label>
+        <PasswordStrengthMeter result={strength} />
         {errors.password && <span role="alert">{errors.password.message}</span>}
 
         <label>
@@ -96,7 +108,7 @@ export default function Register() {
         </label>
         {errors.terms && <span role="alert">{errors.terms.message}</span>}
 
-        <button type="submit" disabled={isSubmitting}>
+        <button type="submit" disabled={isSubmitting || tooWeak || mismatch}>
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>
