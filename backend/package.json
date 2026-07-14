@@ -1,0 +1,16 @@
+{
+  "name": "ecolend-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EcoLend secure P2P lending marketplace — backend (scaffold)",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "test": "echo \"no tests yet\" && exit 0",
+    "lint": "eslint ."
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

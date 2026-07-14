@@ -1,0 +1,19 @@
+# EcoLend CI.
+# Full gates: install -> ESLint -> backend tests ->
+# npm audit --audit-level=high -> Semgrep p/owasp-top-ten -> docker build,
+# plus a grep gate that fails the build on any dangerouslySetInnerHTML.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder
+        run: echo "CI pipeline to be implemented in M0/M8"
