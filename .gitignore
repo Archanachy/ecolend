@@ -59,6 +59,10 @@ desktop.ini
 *.swo
 *~
 
+# ===== Scratch / throwaway scripts (never commit) =====
+._*
+*_smoke.js
+
 # ===== Misc =====
 tmp/
 temp/
