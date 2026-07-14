@@ -17,3 +17,11 @@ export function logout() {
 export function getMe() {
   return client.get('/auth/me');
 }
+
+export function verifyEmail(token) {
+  return client.post('/auth/verify-email', { token });
+}
+
+export function resendVerification(email) {
+  return client.post('/auth/verify-email/resend', { email });
+}

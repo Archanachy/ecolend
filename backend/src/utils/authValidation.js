@@ -21,4 +21,15 @@ const loginSchema = z
   })
   .strict();
 
-module.exports = { registerSchema, loginSchema };
+const verifyEmailSchema = z.object({ token: z.string().min(1).max(2048) }).strict();
+
+const resendVerificationSchema = z
+  .object({ email: z.string().trim().toLowerCase().email().max(254) })
+  .strict();
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+};

@@ -3,8 +3,26 @@
 // fields like `role` or `emailVerified` itself.
 const User = require('../models/user.model');
 const { hashPassword, verifyPassword } = require('../services/password.service');
+const { createToken, verifyToken } = require('../services/token.service');
+const { sendMail } = require('../services/email.service');
 const { deviceHash } = require('../utils/deviceBinding');
+const env = require('../config/env');
 const { logger } = require('../middleware/logger');
+
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+async function sendVerificationEmail(user) {
+  const token = createToken(
+    { uid: user._id.toString(), purpose: 'verify_email' },
+    VERIFY_TOKEN_TTL_MS
+  );
+  const link = `${env.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendMail({
+    to: user.email,
+    subject: 'Verify your EcoLend email',
+    text: `Welcome to EcoLend. Verify your email within 24 hours:\n${link}`,
+  });
+}
 
 // Promisified session.regenerate — issues a fresh session id so a pre-login
 // session cookie cannot be fixed onto the authenticated session.
@@ -36,8 +54,36 @@ async function register(req, res, next) {
       passwordChangedAt: new Date(),
     });
 
+    await sendVerificationEmail(user);
     logger.info('auth.register.success', { userId: user._id.toString() });
     return res.status(201).json({ id: user._id, email: user.email });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function verifyEmail(req, res, next) {
+  try {
+    const payload = verifyToken(req.body.token, 'verify_email');
+    if (!payload) {
+      return res.status(400).json({ error: 'Invalid or expired verification link' });
+    }
+    await User.updateOne({ _id: payload.uid }, { $set: { emailVerified: true } });
+    logger.info('auth.email.verified', { userId: payload.uid });
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function resendVerification(req, res, next) {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (user && !user.emailVerified) {
+      await sendVerificationEmail(user);
+    }
+    // Always generic — never reveal whether the email exists or is verified.
+    return res.json({ ok: true });
   } catch (err) {
     return next(err);
   }
@@ -107,4 +153,4 @@ async function me(req, res, next) {
   }
 }
 
-module.exports = { register, login, logout, me };
+module.exports = { register, login, logout, me, verifyEmail, resendVerification };

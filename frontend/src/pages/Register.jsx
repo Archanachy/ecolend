@@ -54,7 +54,7 @@ export default function Register() {
     setServerError('');
     try {
       await registerApi(values);
-      navigate('/login', { state: { registered: true } });
+      navigate('/verify-email', { state: { registered: true } });
     } catch (err) {
       const status = err.response?.status;
       if (status === 409) setServerError('Unable to register with those details.');
