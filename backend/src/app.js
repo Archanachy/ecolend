@@ -21,7 +21,8 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Feature routers mount here as they are built.
+// Feature routers.
+app.use('/api/auth', require('./routes/auth.routes'));
 
 app.use(notFound);
 app.use(errorHandler);
