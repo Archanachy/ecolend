@@ -3,12 +3,13 @@
 // is the mass-assignment defence. Password strength rules are layered on top
 // in passwordPolicy.js and applied in the controller.
 const { z } = require('zod');
+const { passwordField } = require('./passwordPolicy');
 
 const registerSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
     email: z.string().trim().toLowerCase().email().max(254),
-    password: z.string().min(1).max(128),
+    password: passwordField,
   })
   .strict();
 
