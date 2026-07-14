@@ -7,7 +7,8 @@ function notFound(req, res) {
   res.status(404).json({ error: 'Not found' });
 }
 
-// eslint-disable-next-line no-unused-vars -- Express needs the 4-arg signature.
+// Express needs the 4-arg signature to recognise this as an error handler;
+// `next` is intentionally unused (ignored by the lint config's argsIgnorePattern).
 function errorHandler(err, req, res, next) {
   const status = err.status || 500;
   logger.error('unhandled_error', {

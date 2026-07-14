@@ -1,7 +1,6 @@
-# EcoLend CI.
-# Full gates: install -> ESLint -> backend tests ->
-# npm audit --audit-level=high -> Semgrep p/owasp-top-ten -> docker build,
-# plus a grep gate that fails the build on any dangerouslySetInnerHTML.
+# EcoLend CI. Runs on every push/PR to main:
+# install -> lint -> tests -> dependency audit -> XSS grep gate ->
+# Semgrep SAST -> docker build.
 name: ci
 
 on:
@@ -15,5 +14,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder
-        run: echo "CI pipeline to be implemented in M0/M8"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ---- Backend ----
+      - name: Backend install
+        run: npm ci
+        working-directory: backend
+      - name: Backend lint
+        run: npm run lint
+        working-directory: backend
+      - name: Backend tests
+        run: npm test
+        working-directory: backend
+      - name: Backend dependency audit
+        run: npm audit --audit-level=high
+        working-directory: backend
+
+      # ---- Frontend ----
+      - name: Frontend install
+        run: npm ci
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend build
+        run: npm run build
+        working-directory: frontend
+      # Vite/esbuild are dev-only build tooling and never ship in the built
+      # app, so the frontend audit is scoped to production dependencies.
+      - name: Frontend dependency audit (production deps)
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+
+      # ---- Security gates ----
+      - name: Ban dangerouslySetInnerHTML
+        run: |
+          if grep -rn "dangerouslySetInnerHTML" frontend/src backend/src; then
+            echo "::error::dangerouslySetInnerHTML is banned project-wide (XSS risk)"
+            exit 1
+          fi
+          echo "No dangerouslySetInnerHTML found."
+
+      - name: Semgrep SAST
+        run: |
+          python3 -m pip install --quiet semgrep
+          semgrep scan --config p/owasp-top-ten --error backend/src frontend/src
+
+      # ---- Container build sanity ----
+      - name: Docker build
+        run: docker compose build

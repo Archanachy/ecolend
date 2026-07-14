@@ -20,5 +20,10 @@
     "mongoose": "^8.24.1",
     "winston": "^3.13.0",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0"
   }
 }
