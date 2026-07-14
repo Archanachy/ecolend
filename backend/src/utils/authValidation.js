@@ -23,6 +23,14 @@ const loginSchema = z
 
 const verifyEmailSchema = z.object({ token: z.string().min(1).max(2048) }).strict();
 
+const forgotPasswordSchema = z
+  .object({ email: z.string().trim().toLowerCase().email().max(254) })
+  .strict();
+
+const resetPasswordSchema = z
+  .object({ token: z.string().min(1).max(2048), password: passwordField })
+  .strict();
+
 const resendVerificationSchema = z
   .object({ email: z.string().trim().toLowerCase().email().max(254) })
   .strict();
@@ -32,4 +40,6 @@ module.exports = {
   loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 };

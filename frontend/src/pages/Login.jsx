@@ -19,6 +19,7 @@ export default function Login() {
   const { login } = useAuth();
   const [serverError, setServerError] = useState('');
   const justRegistered = location.state?.registered;
+  const justReset = location.state?.reset;
   const {
     register,
     handleSubmit,
@@ -43,6 +44,7 @@ export default function Login() {
     <main style={{ maxWidth: 420, margin: '2rem auto', padding: '0 1rem' }}>
       <h1>Log in</h1>
       {justRegistered && <p role="status">Account created — please log in.</p>}
+      {justReset && <p role="status">Password updated — please log in.</p>}
       {serverError && (
         <p role="alert" style={{ color: '#B91C1C' }}>
           {serverError}

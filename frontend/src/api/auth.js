@@ -25,3 +25,11 @@ export function verifyEmail(token) {
 export function resendVerification(email) {
   return client.post('/auth/verify-email/resend', { email });
 }
+
+export function forgotPassword(email) {
+  return client.post('/auth/password/forgot', { email });
+}
+
+export function resetPassword(token, password) {
+  return client.post('/auth/password/reset', { token, password });
+}

@@ -23,4 +23,24 @@ async function verifyPassword(hash, plain) {
   }
 }
 
-module.exports = { hashPassword, verifyPassword, ARGON2_OPTIONS };
+// True if the plaintext matches any of the stored recent hashes — used to block
+// reuse of a recent password on change/reset.
+async function isPasswordReused(plain, historyHashes = []) {
+  for (const h of historyHashes) {
+    if (await verifyPassword(h, plain)) return true;
+  }
+  return false;
+}
+
+// Prepend the new hash and keep only the most recent five.
+function pushHistory(historyHashes = [], newHash) {
+  return [newHash, ...historyHashes].slice(0, 5);
+}
+
+module.exports = {
+  hashPassword,
+  verifyPassword,
+  isPasswordReused,
+  pushHistory,
+  ARGON2_OPTIONS,
+};
