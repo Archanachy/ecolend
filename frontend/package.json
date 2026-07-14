@@ -2,7 +2,7 @@
   "name": "ecolend-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "EcoLend secure P2P lending marketplace — frontend (scaffold, Vite + React 18)",
+  "description": "EcoLend secure P2P lending marketplace — frontend (Vite + React 18)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,5 +12,15 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.3.1"
   }
 }
