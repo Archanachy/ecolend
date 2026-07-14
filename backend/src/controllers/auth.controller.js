@@ -2,8 +2,17 @@
 // validated fields — never from req.body directly — so a client cannot set
 // fields like `role` or `emailVerified` itself.
 const User = require('../models/user.model');
-const { hashPassword } = require('../services/password.service');
+const { hashPassword, verifyPassword } = require('../services/password.service');
+const { deviceHash } = require('../utils/deviceBinding');
 const { logger } = require('../middleware/logger');
+
+// Promisified session.regenerate — issues a fresh session id so a pre-login
+// session cookie cannot be fixed onto the authenticated session.
+function regenerateSession(req) {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => (err ? reject(err) : resolve()));
+  });
+}
 
 async function register(req, res, next) {
   try {
@@ -34,4 +43,41 @@ async function register(req, res, next) {
   }
 }
 
-module.exports = { register };
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body; // validated by zod
+    const user = await User.findOne({ email });
+
+    // Generic failure — never reveal whether the email exists.
+    const invalid = () =>
+      res.status(401).json({ error: 'Invalid email or password' });
+
+    if (!user) {
+      logger.info('auth.login.fail', { userId: null, reason: 'no_user' });
+      return invalid();
+    }
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active' });
+    }
+
+    const ok = await verifyPassword(user.passwordHash, password);
+    if (!ok) {
+      logger.info('auth.login.fail', { userId: user._id.toString() });
+      return invalid();
+    }
+
+    // Regenerate the session id on this privilege change (fixation defence),
+    // then attach identity and the device-binding hash.
+    await regenerateSession(req);
+    req.session.userId = user._id.toString();
+    req.session.role = user.role;
+    req.session.deviceHash = deviceHash(req);
+
+    logger.info('auth.login.success', { userId: user._id.toString() });
+    return res.json({ id: user._id, email: user.email, role: user.role });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { register, login };

@@ -3,7 +3,9 @@
 // connection live in server.js so the app stays importable in tests.
 const express = require('express');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 
+const { sessionMiddleware } = require('./config/session');
 const { requestLogger } = require('./middleware/logger');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -15,6 +17,8 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1); // correct client IPs behind a reverse proxy
 
 app.use(express.json({ limit: '100kb' }));
+app.use(cookieParser());
+app.use(sessionMiddleware());
 app.use(requestLogger);
 
 app.get('/api/health', (req, res) => {
