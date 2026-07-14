@@ -6,8 +6,15 @@
 const crypto = require('crypto');
 const env = require('./../config/env');
 
+// Derive a separate signing key from the app secret so email-link tokens are
+// not signed with the raw session secret (domain separation).
+const TOKEN_KEY = crypto
+  .createHash('sha256')
+  .update(`${env.sessionSecret}:email-link-token`)
+  .digest();
+
 function sign(data) {
-  return crypto.createHmac('sha256', env.sessionSecret).update(data).digest('base64url');
+  return crypto.createHmac('sha256', TOKEN_KEY).update(data).digest('base64url');
 }
 
 function createToken(payload, ttlMs) {
