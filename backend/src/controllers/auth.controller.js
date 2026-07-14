@@ -72,6 +72,7 @@ async function login(req, res, next) {
     req.session.userId = user._id.toString();
     req.session.role = user.role;
     req.session.deviceHash = deviceHash(req);
+    req.session.createdAt = Date.now(); // anchor for the 24h absolute timeout
 
     logger.info('auth.login.success', { userId: user._id.toString() });
     return res.json({ id: user._id, email: user.email, role: user.role });
@@ -80,4 +81,30 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { register, login };
+async function logout(req, res, next) {
+  try {
+    const userId = req.session.userId;
+    await new Promise((resolve, reject) =>
+      req.session.destroy((err) => (err ? reject(err) : resolve()))
+    );
+    res.clearCookie('ecolend.sid');
+    logger.info('auth.logout', { userId: userId || null });
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function me(req, res, next) {
+  try {
+    const user = await User.findById(req.userId).select(
+      'name email role emailVerified'
+    );
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    return res.json(user);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { register, login, logout, me };
