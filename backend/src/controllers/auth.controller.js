@@ -10,12 +10,25 @@ const {
 } = require('../services/password.service');
 const { createToken, verifyToken } = require('../services/token.service');
 const { sendMail } = require('../services/email.service');
+const { destroyUserSessions } = require('../config/session');
 const { deviceHash } = require('../utils/deviceBinding');
 const env = require('../config/env');
 const { logger } = require('../middleware/logger');
+const crypto = require('crypto');
 
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// A throwaway hash to verify against when the account does not exist, so a
+// login attempt always performs one argon2 verification regardless — timing
+// then cannot be used to tell whether an email is registered.
+let dummyHashPromise = null;
+function getDummyHash() {
+  if (!dummyHashPromise) {
+    dummyHashPromise = hashPassword(`unused-${crypto.randomBytes(16).toString('hex')}`);
+  }
+  return dummyHashPromise;
+}
 
 // A reset token embeds the account's passwordChangedAt at issue time; once the
 // password changes this value no longer matches, making the token single-use.
@@ -56,15 +69,24 @@ async function register(req, res, next) {
 
     const passwordHash = await hashPassword(password);
 
-    // Explicit whitelist — role/status/emailVerified default from the schema,
-    // never accepted from the request.
-    const user = await User.create({
-      name,
-      email,
-      passwordHash,
-      passwordHistory: [passwordHash],
-      passwordChangedAt: new Date(),
-    });
+    let user;
+    try {
+      // Explicit whitelist — role/status/emailVerified default from the schema,
+      // never accepted from the request.
+      user = await User.create({
+        name,
+        email,
+        passwordHash,
+        passwordHistory: [passwordHash],
+        passwordChangedAt: new Date(),
+      });
+    } catch (createErr) {
+      // Unique-index violation from a race between the check above and insert.
+      if (createErr && createErr.code === 11000) {
+        return res.status(409).json({ error: 'Unable to register with those details' });
+      }
+      throw createErr;
+    }
 
     await sendVerificationEmail(user);
     logger.info('auth.register.success', { userId: user._id.toString() });
@@ -110,18 +132,20 @@ async function login(req, res, next) {
     const invalid = () =>
       res.status(401).json({ error: 'Invalid email or password' });
 
-    if (!user) {
-      logger.info('auth.login.fail', { userId: null, reason: 'no_user' });
+    // Always run exactly one argon2 verification (dummy hash if no account) so
+    // response timing cannot distinguish a missing email from a wrong password.
+    const hashToCheck = user ? user.passwordHash : await getDummyHash();
+    const ok = await verifyPassword(hashToCheck, password);
+
+    if (!user || !ok) {
+      logger.info('auth.login.fail', { userId: user ? user._id.toString() : null });
       return invalid();
-    }
-    if (user.status !== 'active') {
-      return res.status(403).json({ error: 'Account is not active' });
     }
 
-    const ok = await verifyPassword(user.passwordHash, password);
-    if (!ok) {
-      logger.info('auth.login.fail', { userId: user._id.toString() });
-      return invalid();
+    // Account status is only revealed after a correct password, so a suspended
+    // account cannot be detected without valid credentials.
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active' });
     }
 
     // Regenerate the session id on this privilege change (fixation defence),
@@ -215,6 +239,9 @@ async function resetPassword(req, res, next) {
     user.passwordHistory = pushHistory(user.passwordHistory, newHash);
     user.passwordChangedAt = new Date();
     await user.save();
+
+    // Revoke any sessions established before this password change.
+    await destroyUserSessions(user._id);
 
     logger.info('auth.password.reset', { userId: user._id.toString() });
     return res.json({ ok: true });

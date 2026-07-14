@@ -5,6 +5,7 @@
 // in production (local http dev cannot send Secure cookies).
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const mongoose = require('mongoose');
 const env = require('./env');
 
 // 30-minute idle timeout via a rolling cookie (maxAge resets on each response);
@@ -45,4 +46,32 @@ function sessionMiddleware() {
   });
 }
 
-module.exports = { sessionMiddleware, IDLE_TIMEOUT_MS, ABSOLUTE_TIMEOUT_MS };
+// Delete every stored session for a user — used when a password changes or an
+// account is suspended so those sessions are revoked immediately, everywhere.
+// connect-mongo serialises each session as a JSON string (not an embedded
+// object), so we read the sessions, parse them, and delete the ones whose
+// userId matches. Session counts are small and revocation must be reliable, so
+// a scan is the right trade-off here over a fragile string query.
+async function destroyUserSessions(userId) {
+  const coll = mongoose.connection.collection('sessions');
+  const target = String(userId);
+  const ids = [];
+  const cursor = coll.find({}, { projection: { session: 1 } });
+  for await (const doc of cursor) {
+    try {
+      const data = typeof doc.session === 'string' ? JSON.parse(doc.session) : doc.session;
+      if (data && String(data.userId) === target) ids.push(doc._id);
+    } catch {
+      // Ignore any session document that cannot be parsed.
+    }
+  }
+  if (ids.length) await coll.deleteMany({ _id: { $in: ids } });
+  return ids.length;
+}
+
+module.exports = {
+  sessionMiddleware,
+  destroyUserSessions,
+  IDLE_TIMEOUT_MS,
+  ABSOLUTE_TIMEOUT_MS,
+};
