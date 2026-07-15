@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "echo \"no tests yet\" && exit 0",
+    "test": "node --test --test-concurrency=1",
     "lint": "eslint ."
   },
   "engines": {

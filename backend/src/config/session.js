@@ -14,6 +14,30 @@ const env = require('./env');
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 
+// The store is created once and reused. A handle is kept so tests can close it
+// cleanly (otherwise the open Mongo client keeps the process alive).
+let store = null;
+function getStore() {
+  if (!store) {
+    // Read the live env var at creation time (not a value cached when env.js
+    // was first required) so the store always targets the same database the
+    // app is actually using — including when a test swaps in an in-memory URI.
+    store = MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI || env.mongoUri,
+      collectionName: 'sessions',
+      ttl: IDLE_TIMEOUT_MS / 1000,
+    });
+  }
+  return store;
+}
+
+async function closeSessionStore() {
+  if (store) {
+    await store.close();
+    store = null;
+  }
+}
+
 function sessionMiddleware() {
   // Cookie is hardened via httpOnly + sameSite=strict + maxAge, with secure
   // enabled in production. Three Semgrep express-cookie-settings rules are
@@ -31,11 +55,7 @@ function sessionMiddleware() {
     resave: false,
     saveUninitialized: false,
     rolling: true, // reset idle window on activity
-    store: MongoStore.create({
-      mongoUrl: env.mongoUri,
-      collectionName: 'sessions',
-      ttl: IDLE_TIMEOUT_MS / 1000,
-    }),
+    store: getStore(),
     cookie: {
       httpOnly: true,
       secure: env.isProd,
@@ -72,6 +92,7 @@ async function destroyUserSessions(userId) {
 module.exports = {
   sessionMiddleware,
   destroyUserSessions,
+  closeSessionStore,
   IDLE_TIMEOUT_MS,
   ABSOLUTE_TIMEOUT_MS,
 };

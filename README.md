@@ -16,6 +16,6 @@ ecolend/
 
 ## Getting started
 
-1. `cp .env.example .env` and fill in real values (never commit `.env`).
+1. `cp .env.example .env` and fill in real values.
 2. `docker-compose up` — brings up `frontend`, `backend`, and `mongo:7`.
 3. Backend health check: `GET http://localhost:5000/api/health`.
