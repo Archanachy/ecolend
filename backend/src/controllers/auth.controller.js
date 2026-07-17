@@ -12,12 +12,22 @@ const { createToken, verifyToken } = require('../services/token.service');
 const { sendMail } = require('../services/email.service');
 const { destroyUserSessions } = require('../config/session');
 const { deviceHash } = require('../utils/deviceBinding');
+const { recordFailure, reset: resetIpFailures } = require('../utils/ipTracker');
+const SecurityAlert = require('../models/securityAlert.model');
 const env = require('../config/env');
 const { logger } = require('../middleware/logger');
 const crypto = require('crypto');
 
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Account lockout: 5 consecutive failures locks the account for 15 minutes.
+const LOCK_THRESHOLD = 5;
+const LOCK_MS = 15 * 60 * 1000;
+// A rule-based alert fires once failures on an account reach this many.
+const ALERT_AFTER_FAILURES = 3;
+// Passwords expire after 90 days and must be reset before login completes.
+const PASSWORD_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 // A throwaway hash to verify against when the account does not exist, so a
 // login attempt always performs one argon2 verification regardless — timing
@@ -128,24 +138,79 @@ async function login(req, res, next) {
     const { email, password } = req.body; // validated by zod
     const user = await User.findOne({ email });
 
-    // Generic failure — never reveal whether the email exists.
-    const invalid = () =>
-      res.status(401).json({ error: 'Invalid email or password' });
-
     // Always run exactly one argon2 verification (dummy hash if no account) so
     // response timing cannot distinguish a missing email from a wrong password.
     const hashToCheck = user ? user.passwordHash : await getDummyHash();
     const ok = await verifyPassword(hashToCheck, password);
 
     if (!user || !ok) {
+      await recordFailure(req.ip); // IP-level tracking / blocking
+      if (user) {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+        if (user.failedLoginAttempts >= LOCK_THRESHOLD) {
+          user.lockoutUntil = new Date(Date.now() + LOCK_MS);
+        }
+        await user.save();
+        if (user.failedLoginAttempts === ALERT_AFTER_FAILURES) {
+          await SecurityAlert.create({
+            type: 'repeated_failed_login',
+            userId: user._id,
+            detail: `${user.failedLoginAttempts} failed logins`,
+          }).catch(() => {});
+        }
+      }
       logger.info('auth.login.fail', { userId: user ? user._id.toString() : null });
-      return invalid();
+      const body = { error: 'Invalid email or password' };
+      // Signal the client to present a CAPTCHA after repeated failures.
+      if (user && user.failedLoginAttempts >= ALERT_AFTER_FAILURES) {
+        body.captchaRequired = true;
+      }
+      return res.status(401).json(body);
     }
+
+    // Correct password. Surface an active lockout only now, so lockout state is
+    // never revealed to someone who doesn't hold the password.
+    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+      const minutes = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
+      return res
+        .status(423)
+        .json({ error: `Account temporarily locked. Try again in ${minutes} minute(s).` });
+    }
+
+    // Successful auth clears the failure counters (per-account and per-IP).
+    if (user.failedLoginAttempts || user.lockoutUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockoutUntil = undefined;
+      await user.save();
+    }
+    resetIpFailures(req.ip);
 
     // Account status is only revealed after a correct password, so a suspended
     // account cannot be detected without valid credentials.
     if (user.status !== 'active') {
       return res.status(403).json({ error: 'Account is not active' });
+    }
+
+    // Expired password: block login and require a reset first.
+    if (
+      user.passwordChangedAt &&
+      Date.now() - user.passwordChangedAt.getTime() > PASSWORD_MAX_AGE_MS
+    ) {
+      logger.info('auth.login.password_expired', { userId: user._id.toString() });
+      return res.status(403).json({
+        error: 'Your password has expired. Please reset it before signing in.',
+        passwordExpired: true,
+      });
+    }
+
+    // If MFA is enabled, the password is not enough: park the login in a
+    // pending-MFA session (no userId yet, so it grants no access) and require
+    // the second factor via /auth/mfa/verify.
+    if (user.mfaEnabled) {
+      await regenerateSession(req);
+      req.session.pendingMfaUserId = user._id.toString();
+      logger.info('auth.login.mfa_required', { userId: user._id.toString() });
+      return res.json({ mfaRequired: true });
     }
 
     // Regenerate the session id on this privilege change (fixation defence),
@@ -180,7 +245,7 @@ async function logout(req, res, next) {
 async function me(req, res, next) {
   try {
     const user = await User.findById(req.userId).select(
-      'name email role emailVerified'
+      'name email role emailVerified mfaEnabled'
     );
     if (!user) return res.status(404).json({ error: 'Not found' });
     return res.json(user);

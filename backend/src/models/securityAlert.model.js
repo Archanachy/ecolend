@@ -7,7 +7,12 @@ const securityAlertSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['repeated_failed_login', 'new_device_login', 'rate_limit_triggered'],
+      enum: [
+        'repeated_failed_login',
+        'new_device_login',
+        'rate_limit_triggered',
+        'integrity_mismatch',
+      ],
       required: true,
     },
     userId: {

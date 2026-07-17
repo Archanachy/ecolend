@@ -35,6 +35,22 @@ const resendVerificationSchema = z
   .object({ email: z.string().trim().toLowerCase().email().max(254) })
   .strict();
 
+// A 6-digit TOTP code (used to enable, disable, and confirm MFA setup).
+const mfaCodeSchema = z
+  .object({ code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code') })
+  .strict();
+
+// Login completion accepts either a TOTP code or one backup code.
+const mfaVerifySchema = z
+  .object({
+    code: z.string().trim().regex(/^\d{6}$/).optional(),
+    backupCode: z.string().trim().min(4).max(32).optional(),
+  })
+  .strict()
+  .refine((d) => d.code || d.backupCode, {
+    message: 'Provide a code or a backup code',
+  });
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -42,4 +58,6 @@ module.exports = {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  mfaCodeSchema,
+  mfaVerifySchema,
 };

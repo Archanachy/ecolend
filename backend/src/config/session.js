@@ -72,26 +72,74 @@ function sessionMiddleware() {
 // object), so we read the sessions, parse them, and delete the ones whose
 // userId matches. Session counts are small and revocation must be reliable, so
 // a scan is the right trade-off here over a fragile string query.
+function parseSession(doc) {
+  try {
+    return typeof doc.session === 'string' ? JSON.parse(doc.session) : doc.session;
+  } catch {
+    return null;
+  }
+}
+
 async function destroyUserSessions(userId) {
   const coll = mongoose.connection.collection('sessions');
   const target = String(userId);
   const ids = [];
   const cursor = coll.find({}, { projection: { session: 1 } });
   for await (const doc of cursor) {
-    try {
-      const data = typeof doc.session === 'string' ? JSON.parse(doc.session) : doc.session;
-      if (data && String(data.userId) === target) ids.push(doc._id);
-    } catch {
-      // Ignore any session document that cannot be parsed.
-    }
+    const data = parseSession(doc);
+    if (data && String(data.userId) === target) ids.push(doc._id);
   }
   if (ids.length) await coll.deleteMany({ _id: { $in: ids } });
   return ids.length;
 }
 
+// Lists a user's active sessions (id + login time) for the sessions page.
+async function listUserSessions(userId) {
+  const coll = mongoose.connection.collection('sessions');
+  const target = String(userId);
+  const out = [];
+  const cursor = coll.find({});
+  for await (const doc of cursor) {
+    const data = parseSession(doc);
+    if (data && String(data.userId) === target) {
+      out.push({ id: doc._id, createdAt: data.createdAt ? new Date(data.createdAt) : null });
+    }
+  }
+  return out;
+}
+
+// Revokes all of a user's sessions except the one they're currently using.
+async function destroyOtherUserSessions(userId, keepSid) {
+  const coll = mongoose.connection.collection('sessions');
+  const target = String(userId);
+  const ids = [];
+  const cursor = coll.find({});
+  for await (const doc of cursor) {
+    if (doc._id === keepSid) continue;
+    const data = parseSession(doc);
+    if (data && String(data.userId) === target) ids.push(doc._id);
+  }
+  if (ids.length) await coll.deleteMany({ _id: { $in: ids } });
+  return ids.length;
+}
+
+// Revokes one specific session, but only if it belongs to this user (IDOR guard).
+async function destroyUserSessionById(userId, sid) {
+  const coll = mongoose.connection.collection('sessions');
+  const doc = await coll.findOne({ _id: sid });
+  if (!doc) return false;
+  const data = parseSession(doc);
+  if (!data || String(data.userId) !== String(userId)) return false;
+  await coll.deleteOne({ _id: sid });
+  return true;
+}
+
 module.exports = {
   sessionMiddleware,
   destroyUserSessions,
+  listUserSessions,
+  destroyOtherUserSessions,
+  destroyUserSessionById,
   closeSessionStore,
   IDLE_TIMEOUT_MS,
   ABSOLUTE_TIMEOUT_MS,
