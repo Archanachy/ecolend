@@ -62,6 +62,21 @@ const bookingSchema = new mongoose.Schema(
 
     integrityHash: { type: String }, // SHA-256 of canonical fields, checked on read
     statusHistory: { type: [statusHistorySchema], default: [] },
+    // Comment thread between the two participants (plain HTTP, no websocket).
+    // Extension over the base schema to support the booking-page thread (04).
+    comments: {
+      type: [
+        new mongoose.Schema(
+          {
+            authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+            body: { type: String, required: true },
+            at: { type: Date, default: Date.now },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
