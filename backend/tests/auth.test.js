@@ -72,9 +72,10 @@ test('login succeeds and issues an HttpOnly, SameSite=Strict cookie', async () =
     .post('/api/auth/login')
     .send({ email: 'ok@example.com', password: STRONG_PASSWORD });
   assert.equal(res.status, 200);
-  const cookie = (res.headers['set-cookie'] || [])[0] || '';
-  assert.match(cookie, /HttpOnly/i);
-  assert.match(cookie, /SameSite=Strict/i);
+  const cookies = res.headers['set-cookie'] || [];
+  const sessionCookie = cookies.find((c) => c.startsWith('ecolend.sid=')) || '';
+  assert.match(sessionCookie, /HttpOnly/i);
+  assert.match(sessionCookie, /SameSite=Strict/i);
 });
 
 test('suspended account is only revealed after a correct password', async () => {

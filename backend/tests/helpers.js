@@ -13,7 +13,13 @@ async function setup() {
   mem = await MongoMemoryServer.create();
   process.env.MONGODB_URI = mem.getUri();
   process.env.SESSION_SECRET = 'test-session-secret';
+  process.env.FIELD_ENC_KEY = 'a'.repeat(64); // 256-bit test key
+  process.env.CAPTCHA_SITE_KEY = 'backend-test-site-key';
+  process.env.CAPTCHA_SECRET_KEY = 'backend-test-secret-key';
   process.env.NODE_ENV = 'test';
+  // Never send real email from tests. Set (don't delete) — dotenv only fills
+  // keys that are absent, so an empty value keeps it from reading .env.
+  process.env.MAIL_HOST = '';
 
   // Require only after env is set so the modules read the right config.
   mongoose = require('mongoose');
