@@ -25,11 +25,27 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  const login = useCallback(async (credentials) => {
-    const { data } = await authApi.login(credentials);
-    setUser(data);
-    return data;
-  }, []);
+  const login = useCallback(
+    async (credentials) => {
+      const { data } = await authApi.login(credentials);
+      // If MFA is required the response carries no user — don't set one yet.
+      if (data.mfaRequired) return data;
+      // Load the canonical profile (name, _id, ...) rather than the trimmed
+      // login response, so every consumer sees the same user shape.
+      await refresh();
+      return data;
+    },
+    [refresh]
+  );
+
+  const completeMfa = useCallback(
+    async (payload) => {
+      const { data } = await authApi.mfaVerify(payload);
+      await refresh();
+      return data;
+    },
+    [refresh]
+  );
 
   const logout = useCallback(async () => {
     await authApi.logout();
@@ -37,7 +53,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, login, completeMfa, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

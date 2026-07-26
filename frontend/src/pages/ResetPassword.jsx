@@ -56,44 +56,49 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <main style={{ maxWidth: 420, margin: '2rem auto', padding: '0 1rem' }}>
-        <h1>Reset your password</h1>
-        <p role="alert">This reset link is missing or invalid.</p>
-        <Link to="/forgot-password">Request a new link</Link>
-      </main>
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <span className="auth-brand">🌱 EcoLend</span>
+          <h1>Reset your password</h1>
+          <div className="alert alert-error" role="alert">This reset link is missing or invalid.</div>
+          <p className="auth-alt"><Link to="/forgot-password">Request a new link</Link></p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: '2rem auto', padding: '0 1rem' }}>
-      <h1>Choose a new password</h1>
-      {serverError && (
-        <p role="alert" style={{ color: '#B91C1C' }}>
-          {serverError}
-        </p>
-      )}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <label>
-          New password
-          <input type="password" autoComplete="new-password" {...register('password')} />
-        </label>
-        <PasswordStrengthMeter result={strength} />
-        {errors.password && <span role="alert">{errors.password.message}</span>}
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <span className="auth-brand">🌱 EcoLend</span>
+        <h1>Choose a new password</h1>
+        {serverError && (
+          <div className="alert alert-error" role="alert">{serverError}</div>
+        )}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="field">
+            <label htmlFor="password">New password</label>
+            <input id="password" type="password" autoComplete="new-password" {...register('password')} />
+            <PasswordStrengthMeter result={strength} />
+            {errors.password && <span className="field-error" role="alert">{errors.password.message}</span>}
+          </div>
 
-        <label>
-          Confirm password
-          <input
-            type="password"
-            autoComplete="new-password"
-            {...register('confirmPassword')}
-          />
-        </label>
-        {errors.confirmPassword && <span role="alert">{errors.confirmPassword.message}</span>}
+          <div className="field">
+            <label htmlFor="confirmPassword">Confirm password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              {...register('confirmPassword')}
+            />
+            {errors.confirmPassword && <span className="field-error" role="alert">{errors.confirmPassword.message}</span>}
+          </div>
 
-        <button type="submit" disabled={isSubmitting || tooWeak}>
-          {isSubmitting ? 'Saving…' : 'Set new password'}
-        </button>
-      </form>
-    </main>
+          <button type="submit" className="btn-block" disabled={isSubmitting || tooWeak}>
+            {isSubmitting ? 'Saving…' : 'Set new password'}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

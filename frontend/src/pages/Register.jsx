@@ -9,6 +9,7 @@ import zxcvbn from 'zxcvbn';
 import { Link, useNavigate } from 'react-router-dom';
 import { register as registerApi } from '../api/auth';
 import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import Captcha from '../components/Captcha';
 
 const schema = z
   .object({
@@ -35,6 +36,7 @@ const schema = z
 export default function Register() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
   const {
     register,
     handleSubmit,
@@ -53,10 +55,14 @@ export default function Register() {
   async function onSubmit(values) {
     setServerError('');
     try {
-      await registerApi(values);
+      await registerApi({ ...values, captchaToken });
       navigate('/verify-email', { state: { registered: true } });
     } catch (err) {
       const status = err.response?.status;
+      if (err.response?.data?.captchaRequired) {
+        setServerError('Please complete the CAPTCHA and try again.');
+        return;
+      }
       if (status === 409) setServerError('Unable to register with those details.');
       else if (status === 400) setServerError('Please check the form and try again.');
       else if (status === 429) setServerError('Too many attempts. Please wait and try again.');
@@ -65,56 +71,61 @@ export default function Register() {
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: '2rem auto', padding: '0 1rem' }}>
-      <h1>Create your account</h1>
-      {serverError && (
-        <p role="alert" style={{ color: '#B91C1C' }}>
-          {serverError}
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <span className="auth-brand">🌱 EcoLend</span>
+        <h1>Create your account</h1>
+        <p className="muted">Join the community and start lending or borrowing.</p>
+        {serverError && (
+          <div className="alert alert-error" role="alert">{serverError}</div>
+        )}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="field">
+            <label htmlFor="name">Name</label>
+            <input id="name" type="text" autoComplete="name" {...register('name')} />
+            {errors.name && <span className="field-error" role="alert">{errors.name.message}</span>}
+          </div>
+
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" autoComplete="email" {...register('email')} />
+            {errors.email && <span className="field-error" role="alert">{errors.email.message}</span>}
+          </div>
+
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" autoComplete="new-password" {...register('password')} />
+            <PasswordStrengthMeter result={strength} />
+            {errors.password && <span className="field-error" role="alert">{errors.password.message}</span>}
+          </div>
+
+          <div className="field">
+            <label htmlFor="confirmPassword">Confirm password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              {...register('confirmPassword')}
+            />
+            {errors.confirmPassword && <span className="field-error" role="alert">{errors.confirmPassword.message}</span>}
+          </div>
+
+          <label style={{ fontWeight: 500 }}>
+            <input type="checkbox" {...register('terms')} /> I accept the{' '}
+            <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>
+          </label>
+          {errors.terms && <span className="field-error" role="alert">{errors.terms.message}</span>}
+
+          <Captcha onChange={setCaptchaToken} />
+
+          <button type="submit" className="btn-block" style={{ marginTop: 'var(--space-4)' }} disabled={isSubmitting || tooWeak || mismatch || !captchaToken}>
+            {isSubmitting ? 'Creating account…' : 'Create account'}
+          </button>
+        </form>
+        <p className="auth-alt">
+          Already have an account? <Link to="/login">Log in</Link>
         </p>
-      )}
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <label>
-          Name
-          <input type="text" autoComplete="name" {...register('name')} />
-        </label>
-        {errors.name && <span role="alert">{errors.name.message}</span>}
-
-        <label>
-          Email
-          <input type="email" autoComplete="email" {...register('email')} />
-        </label>
-        {errors.email && <span role="alert">{errors.email.message}</span>}
-
-        <label>
-          Password
-          <input type="password" autoComplete="new-password" {...register('password')} />
-        </label>
-        <PasswordStrengthMeter result={strength} />
-        {errors.password && <span role="alert">{errors.password.message}</span>}
-
-        <label>
-          Confirm password
-          <input
-            type="password"
-            autoComplete="new-password"
-            {...register('confirmPassword')}
-          />
-        </label>
-        {errors.confirmPassword && <span role="alert">{errors.confirmPassword.message}</span>}
-
-        <label>
-          <input type="checkbox" {...register('terms')} /> I accept the{' '}
-          <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>
-        </label>
-        {errors.terms && <span role="alert">{errors.terms.message}</span>}
-
-        <button type="submit" disabled={isSubmitting || tooWeak || mismatch}>
-          {isSubmitting ? 'Creating account…' : 'Create account'}
-        </button>
-      </form>
-      <p>
-        Already have an account? <Link to="/login">Log in</Link>
-      </p>
-    </main>
+      </div>
+    </div>
   );
 }

@@ -2,7 +2,13 @@
 // so strength is never conveyed by colour alone (accessibility). When weak, it
 // surfaces one specific, actionable hint.
 const LABELS = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-const COLORS = ['#B91C1C', '#B45309', '#B45309', '#15803D', '#15803D'];
+const COLORS = [
+  'var(--color-danger)',
+  'var(--color-warning)',
+  'var(--color-warning)',
+  'var(--color-success)',
+  'var(--color-success)',
+];
 
 export default function PasswordStrengthMeter({ result }) {
   if (!result) return null;
@@ -10,20 +16,20 @@ export default function PasswordStrengthMeter({ result }) {
   const hint = feedback?.warning || feedback?.suggestions?.[0];
 
   return (
-    <div aria-live="polite" style={{ margin: '4px 0 8px' }}>
-      <div style={{ height: 6, background: '#D1D5DB', borderRadius: 3 }}>
+    <div aria-live="polite" style={{ margin: '8px 0 4px' }}>
+      <div style={{ height: 6, background: 'var(--color-neutral-200)', borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}>
         <div
           style={{
             width: `${(score + 1) * 20}%`,
             height: '100%',
             background: COLORS[score],
-            borderRadius: 3,
-            transition: 'width 120ms',
+            borderRadius: 'var(--radius-pill)',
+            transition: 'width 160ms, background 160ms',
           }}
         />
       </div>
-      <small>
-        Strength: {LABELS[score]}
+      <small className="muted">
+        Strength: <strong style={{ color: COLORS[score] }}>{LABELS[score]}</strong>
         {score < 2 && hint ? ` — ${hint}` : ''}
       </small>
     </div>

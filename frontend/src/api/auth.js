@@ -2,12 +2,12 @@
 // cookie, redirects to /login on 401).
 import client from './client';
 
-export function register({ name, email, password }) {
-  return client.post('/auth/register', { name, email, password });
+export function register({ name, email, password, captchaToken }) {
+  return client.post('/auth/register', { name, email, password, captchaToken });
 }
 
-export function login({ email, password }) {
-  return client.post('/auth/login', { email, password });
+export function login({ email, password, captchaToken }) {
+  return client.post('/auth/login', { email, password, captchaToken });
 }
 
 export function logout() {
@@ -32,4 +32,33 @@ export function forgotPassword(email) {
 
 export function resetPassword(token, password) {
   return client.post('/auth/password/reset', { token, password });
+}
+
+export function mfaSetup() {
+  return client.post('/auth/mfa/setup');
+}
+
+export function mfaEnable(code) {
+  return client.post('/auth/mfa/enable', { code });
+}
+
+export function mfaVerify(payload) {
+  // payload is { code } or { backupCode }
+  return client.post('/auth/mfa/verify', payload);
+}
+
+export function mfaDisable(code) {
+  return client.post('/auth/mfa/disable', { code });
+}
+
+export function listSessions() {
+  return client.get('/auth/sessions');
+}
+
+export function revokeOtherSessions() {
+  return client.delete('/auth/sessions/others');
+}
+
+export function revokeSession(id) {
+  return client.delete(`/auth/sessions/${id}`);
 }

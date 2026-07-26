@@ -8,6 +8,23 @@ const client = axios.create({
   withCredentials: true,
 });
 
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+// Double-submit CSRF: echo the csrfToken cookie in a header on state-changing
+// requests. The backend sets that cookie on any GET, so it's present by the
+// time the SPA issues its first write.
+client.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase();
+  if (!['get', 'head', 'options'].includes(method)) {
+    const token = getCookie('csrfToken');
+    if (token) config.headers['X-CSRF-Token'] = token;
+  }
+  return config;
+});
+
 client.interceptors.response.use(
   (response) => response,
   (error) => {
