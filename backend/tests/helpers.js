@@ -26,6 +26,12 @@ async function setup() {
   await mongoose.connect(process.env.MONGODB_URI);
   app = require('../src/app');
   ({ closeSessionStore } = require('../src/config/session'));
+
+  // Requiring the app loads every model and starts index creation in the
+  // background. Wait for those operations before returning so a short test
+  // cannot tear MongoDB down while an index command is still in flight.
+  await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
+
   return { app, mongoose };
 }
 
