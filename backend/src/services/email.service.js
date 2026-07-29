@@ -24,8 +24,11 @@ async function sendMail({ to, subject, text }) {
   // Structured log records metadata only — never the body or any token.
   logger.info('email.sent', { to, subject });
 
-  // Never open a real SMTP connection from the test suite, whatever is in .env.
-  if (env.mail.enabled && process.env.NODE_ENV !== 'test') {
+  // Tests verify the surrounding flows, not delivery. Keep verification and
+  // reset links out of CI logs and never open an SMTP connection from tests.
+  if (process.env.NODE_ENV === 'test') return;
+
+  if (env.mail.enabled) {
     // Real SMTP delivery.
     await getTransporter().sendMail({ from: env.mail.from, to, subject, text });
     return;
