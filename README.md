@@ -88,7 +88,7 @@ Copy `.env.example` to `.env` and fill in:
 | `APP_URL`, `BACKEND_URL` | Frontend / backend base URLs |
 | `KHALTI_SECRET_KEY` | Khalti live/test secret key |
 | `MAIL_HOST/PORT/USER/PASS/FROM` | SMTP for verification & reset email (blank = dev console transport) |
-| `CAPTCHA_SECRET_KEY` | hCaptcha secret (dev-bypassed when blank) |
+| `CAPTCHA_SITE_KEY`, `CAPTCHA_SECRET_KEY` | hCaptcha server configuration; registration fails closed when missing |
 
 Generate a field-encryption key: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
