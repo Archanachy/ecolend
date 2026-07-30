@@ -1,50 +1,52 @@
 // EcoLend frontend — root component and route table.
 // Pages are added to this table as they are built; the design-system chrome
 // wraps this in later steps.
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import LoginMfa from './pages/LoginMfa';
-import VerifyEmail from './pages/VerifyEmail';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
-import MfaSetup from './pages/MfaSetup';
-import Sessions from './pages/Sessions';
-import Browse from './pages/Browse';
-import ListingDetail from './pages/ListingDetail';
-import ListingForm from './pages/ListingForm';
-import MyListings from './pages/MyListings';
-import MyBookings from './pages/MyBookings';
-import BookingRequests from './pages/BookingRequests';
-import BookingDetail from './pages/BookingDetail';
-import PaymentPay from './pages/PaymentPay';
-import PaymentCallback from './pages/PaymentCallback';
-import Profile from './pages/Profile';
-import ProfileEdit from './pages/ProfileEdit';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminLogs from './pages/admin/AdminLogs';
-import AdminAlerts from './pages/admin/AdminAlerts';
-import AdminBookings from './pages/admin/AdminBookings';
-import AdminReviews from './pages/admin/AdminReviews';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
-import About from './pages/About';
-import HowItWorks from './pages/HowItWorks';
-import Faq from './pages/Faq';
-import Contact from './pages/Contact';
-import Favorites from './pages/Favorites';
-import Notifications from './pages/Notifications';
-import Earnings from './pages/Earnings';
-import Settings from './pages/Settings';
-import SettingsPrivacy from './pages/SettingsPrivacy';
-import SettingsNotifications from './pages/SettingsNotifications';
-import SettingsAccessibility from './pages/SettingsAccessibility';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import { useAuth } from './context/AuthContext';
+
+const Register = lazy(() => import('./pages/Register'));
+const Login = lazy(() => import('./pages/Login'));
+const LoginMfa = lazy(() => import('./pages/LoginMfa'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const MfaSetup = lazy(() => import('./pages/MfaSetup'));
+const Sessions = lazy(() => import('./pages/Sessions'));
+const Browse = lazy(() => import('./pages/Browse'));
+const ListingDetail = lazy(() => import('./pages/ListingDetail'));
+const ListingForm = lazy(() => import('./pages/ListingForm'));
+const MyListings = lazy(() => import('./pages/MyListings'));
+const MyBookings = lazy(() => import('./pages/MyBookings'));
+const BookingRequests = lazy(() => import('./pages/BookingRequests'));
+const BookingDetail = lazy(() => import('./pages/BookingDetail'));
+const PaymentPay = lazy(() => import('./pages/PaymentPay'));
+const PaymentCallback = lazy(() => import('./pages/PaymentCallback'));
+const Profile = lazy(() => import('./pages/Profile'));
+const ProfileEdit = lazy(() => import('./pages/ProfileEdit'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminLogs = lazy(() => import('./pages/admin/AdminLogs'));
+const AdminAlerts = lazy(() => import('./pages/admin/AdminAlerts'));
+const AdminBookings = lazy(() => import('./pages/admin/AdminBookings'));
+const AdminReviews = lazy(() => import('./pages/admin/AdminReviews'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const About = lazy(() => import('./pages/About'));
+const HowItWorks = lazy(() => import('./pages/HowItWorks'));
+const Faq = lazy(() => import('./pages/Faq'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Favorites = lazy(() => import('./pages/Favorites'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Earnings = lazy(() => import('./pages/Earnings'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SettingsPrivacy = lazy(() => import('./pages/SettingsPrivacy'));
+const SettingsNotifications = lazy(() => import('./pages/SettingsNotifications'));
+const SettingsAccessibility = lazy(() => import('./pages/SettingsAccessibility'));
 
 function Home() {
   const { user } = useAuth();
@@ -139,7 +141,14 @@ function NotFound() {
 export default function App() {
   return (
     <Layout>
-      <Routes>
+      <Suspense
+        fallback={
+          <main className="container-sm" aria-busy="true" aria-live="polite">
+            <p>Loading page…</p>
+          </main>
+        }
+      >
+        <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
@@ -192,7 +201,8 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<NotFound />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </Layout>
   );
 }
