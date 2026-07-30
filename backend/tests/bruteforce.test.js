@@ -6,12 +6,16 @@ const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const { setup, teardown, clearDb, STRONG_PASSWORD } = require('./helpers');
-const ipTracker = require('../src/utils/ipTracker');
 
 let app;
+let ipTracker;
 
 before(async () => {
   ({ app } = await setup());
+  // setup() must establish the test environment before any application module
+  // loads the one-time env config. ipTracker imports the logger, which imports
+  // that config and would otherwise cache missing CAPTCHA keys on clean CI.
+  ipTracker = require('../src/utils/ipTracker');
 });
 after(teardown);
 beforeEach(async () => {
