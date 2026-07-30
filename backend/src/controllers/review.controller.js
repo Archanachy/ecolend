@@ -1,9 +1,8 @@
 // Review controller. A review can only be written by a participant of a
 // completed booking. Both participants may review each other, but each only
 // once — enforced by the unique (bookingId, authorId) index. The comment is
-// stored as-is; React escapes it on render and
-// dangerouslySetInnerHTML is banned project-wide, which is the stored-XSS
-// defence.
+// stored as-is; React escapes it on render, and raw HTML rendering is banned
+// project-wide as the stored-XSS defence.
 const mongoose = require('mongoose');
 const Review = require('../models/review.model');
 const Booking = require('../models/booking.model');
