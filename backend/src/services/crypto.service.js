@@ -10,6 +10,7 @@ const env = require('../config/env');
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12; // 96-bit nonce, the recommended size for GCM
+const AUTH_TAG_BYTES = 16; // 128-bit tag; never accept truncated GCM tags
 
 function getKey() {
   // Read the live env var (dotenv populates process.env), falling back to the
@@ -25,7 +26,9 @@ function getKey() {
 function encrypt(plaintext) {
   if (plaintext == null || plaintext === '') return plaintext;
   const iv = crypto.randomBytes(IV_BYTES);
-  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv, {
+    authTagLength: AUTH_TAG_BYTES,
+  });
   const enc = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `${iv.toString('base64')}:${tag.toString('base64')}:${enc.toString('base64')}`;
@@ -37,8 +40,15 @@ function decrypt(payload) {
   if (!ivB64 || !tagB64 || !dataB64) {
     throw new Error('Malformed ciphertext.');
   }
-  const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivB64, 'base64'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+  const iv = Buffer.from(ivB64, 'base64');
+  const tag = Buffer.from(tagB64, 'base64');
+  if (iv.length !== IV_BYTES || tag.length !== AUTH_TAG_BYTES) {
+    throw new Error('Malformed ciphertext.');
+  }
+  const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv, {
+    authTagLength: AUTH_TAG_BYTES,
+  });
+  decipher.setAuthTag(tag);
   return Buffer.concat([
     decipher.update(Buffer.from(dataB64, 'base64')),
     decipher.final(),

@@ -23,6 +23,12 @@ test('detects tampering via the GCM auth tag', () => {
   assert.throws(() => decrypt(tampered));
 });
 
+test('rejects a truncated GCM authentication tag', () => {
+  const [iv, , data] = encrypt('sensitive').split(':');
+  const shortTag = Buffer.alloc(8).toString('base64');
+  assert.throws(() => decrypt(`${iv}:${shortTag}:${data}`), /Malformed ciphertext/);
+});
+
 test('passes null and empty through unchanged', () => {
   assert.equal(encrypt(null), null);
   assert.equal(encrypt(''), '');
